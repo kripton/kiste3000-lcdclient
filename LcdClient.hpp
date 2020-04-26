@@ -1,6 +1,9 @@
 #include <QtNetwork>
 #include <QtCore>
 
+#include <QDebug>
+
+#include <QTime>
 #include <QTimer>
 #include <QFile>
 #include <QTcpSocket>
@@ -17,6 +20,8 @@ public:
 
 private slots:
     void update();
+    void readServerResponse();
+    void handleSocketError(QAbstractSocket::SocketError socketError);
 
 private:
     QTimer updateTimer;
