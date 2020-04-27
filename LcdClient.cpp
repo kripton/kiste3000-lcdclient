@@ -7,12 +7,22 @@ LcdClient::LcdClient(QObject *parent)
 
     fileTemp.setFileName("/sys/devices/virtual/thermal/thermal_zone0/temp");
     if (!fileTemp.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Failed to open thermal_zone file!";
+        qDebug() << "Failed to open /sys/devices/virtual/thermal/thermal_zone0/temp";
     }
 
     fileStat.setFileName("/proc/stat");
     if (!fileStat.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Failed to open /proc/stat!";
+        qDebug() << "Failed to open /proc/stat";
+    }
+
+    fileVoltAlarm.setFileName("/sys/devices/platform/soc/soc:firmware/raspberrypi-hwmon/hwmon/hwmon0/in0_lcrit_alarm");
+    if (!fileVoltAlarm.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open /sys/devices/platform/soc/soc:firmware/raspberrypi-hwmon/hwmon/hwmon0/in0_lcrit_alarm";
+    }
+
+    fileTempThrottle.setFileName("/sys/devices/platform/soc/soc:firmware/get_throttled");
+    if (!fileTempThrottle.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open /sys/devices/platform/soc/soc:firmware/get_throttled";
     }
 
     connect(&lcdSocket, &QIODevice::readyRead, this, &LcdClient::readServerResponse);
@@ -28,16 +38,16 @@ void LcdClient::update()
     lcdSocket.write(QString("widget_set time line1 Uhrzeit\n").toLatin1());
     lcdSocket.write(QString("widget_set time line2 1 2 \"%1\"\n").arg(QDateTime::currentDateTime().toString("dd.MM.  HH:mm:ss")).toLatin1());
 
-    lcdSocket.write(QString("widget_set sys line1 System\n").toLatin1());
+    lcdSocket.write(QString("widget_set sys line1 \"Status:%1\"\n").arg(getRPiStatus()).toLatin1());
     lcdSocket.write(QString("widget_set sys line2 1 2 \"CPU:%1  T:%2°C\"\n")
         .arg(getMachineCPULoad())
         .arg(getMachineTemp())
         .toLatin1()
     );
 
-    lcdSocket.write(QString("widget_set net line1 eth0\n").toLatin1());
-    lcdSocket.write(QString("widget_set net line2 1 2 \"%1\"\n")
-        .arg(getMachineIPs().right(13))
+    lcdSocket.write(QString("widget_set net line1 Netzwerk\n").toLatin1());
+    lcdSocket.write(QString("widget_set net line2 1 2 15 2 m 2 \"%1\"\n")
+        .arg(getMachineIPs())
         .toLatin1()
     );
 }
@@ -117,6 +127,24 @@ QString LcdClient::getMachineIPs() {
     return machineIPs;
 }
 
+QString LcdClient::getRPiStatus() {
+    fileVoltAlarm.seek(0);
+    fileTempThrottle.seek(0);
+
+    int voltAlarm = QString(fileVoltAlarm.readAll()).toInt();
+    int tempThrottle = QString(fileTempThrottle.readAll()).toInt();
+
+    if (voltAlarm && !tempThrottle) {
+        return QString("Saft");
+    } else if (!voltAlarm && tempThrottle) {
+        return QString("Hitz");
+    } else if (voltAlarm && tempThrottle) {
+        return QString("H&S");
+    } else {
+        return QString("Gut");
+    }
+}
+
 void LcdClient::readServerResponse()
 {
     QString response = lcdSocket.readAll();
@@ -131,7 +159,7 @@ void LcdClient::readServerResponse()
         lcdSocket.write("widget_add sys line2 string\n");
         lcdSocket.write("screen_add net\n");
         lcdSocket.write("widget_add net line1 title\n");
-        lcdSocket.write("widget_add net line2 string\n");
+        lcdSocket.write("widget_add net line2 scroller\n");
         updateTimer.start(1000);
     }
 }

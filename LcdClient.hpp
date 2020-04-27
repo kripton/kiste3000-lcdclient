@@ -40,11 +40,14 @@ private:
     QTcpSocket lcdSocket;
     QFile fileTemp;
     QFile fileStat;
+    QFile fileVoltAlarm;
+    QFile fileTempThrottle;
 
     loadStruct lastLoad;
 
     QString getMachineIPs();
     QString getMachineTemp();
     QString getMachineCPULoad();
+    QString getRPiStatus();
 };
 #endif  // LCDCLIENT_H_
