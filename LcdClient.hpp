@@ -8,6 +8,9 @@
 #include <QFile>
 #include <QTcpSocket>
 #include <QHash>
+#include <QNetworkAccessManager>
+#include <QUrl>
+#include <QJsonDocument>
 
 #include <QNetworkInterface>
 
@@ -32,6 +35,7 @@ public:
 
 private slots:
     void update();
+    void handleHttpResponse(QNetworkReply *reply);
     void readServerResponse();
     void handleSocketError(QAbstractSocket::SocketError socketError);
 
@@ -42,6 +46,8 @@ private:
     QFile fileStat;
     QFile fileVoltAlarm;
     QFile fileTempThrottle;
+    QNetworkAccessManager qnam;
+    QNetworkRequest request;
 
     loadStruct lastLoad;
 
@@ -49,5 +55,6 @@ private:
     QString getMachineTemp();
     QString getMachineCPULoad();
     QString getRPiStatus();
+    void updateDmxUniverses();
 };
 #endif  // LCDCLIENT_H_

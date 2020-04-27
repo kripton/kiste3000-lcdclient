@@ -5,6 +5,8 @@ LcdClient::LcdClient(QObject *parent)
 {
     connect(&updateTimer, &QTimer::timeout, this, &LcdClient::update);
 
+    connect(&qnam, &QNetworkAccessManager::finished, this, &LcdClient::handleHttpResponse);
+
     fileTemp.setFileName("/sys/devices/virtual/thermal/thermal_zone0/temp");
     if (!fileTemp.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "Failed to open /sys/devices/virtual/thermal/thermal_zone0/temp";
@@ -35,6 +37,8 @@ LcdClient::LcdClient(QObject *parent)
 
 void LcdClient::update()
 {
+    updateDmxUniverses();
+
     lcdSocket.write(QString("widget_set time line1 Uhrzeit\n").toLatin1());
     lcdSocket.write(QString("widget_set time line2 1 2 \"%1\"\n").arg(QDateTime::currentDateTime().toString("dd.MM.  HH:mm:ss")).toLatin1());
 
@@ -160,8 +164,49 @@ void LcdClient::readServerResponse()
         lcdSocket.write("screen_add net\n");
         lcdSocket.write("widget_add net line1 title\n");
         lcdSocket.write("widget_add net line2 scroller\n");
+        for (int i = 1; i <= 8; i++) {
+            lcdSocket.write(QString("screen_add universe%1\n").arg(i).toLatin1());
+            lcdSocket.write(QString("widget_add universe%1 line1 title\n").arg(i).toLatin1());
+            lcdSocket.write(QString("widget_add universe%1 line2 string\n").arg(i).toLatin1());
+            lcdSocket.write(QString("widget_set universe%1 line1 \"Universe %1\"\n").arg(i).toLatin1());
+        }
         updateTimer.start(1000);
     }
+}
+
+void LcdClient::updateDmxUniverses() {
+    for (int i = 1; i <= 8; i++) {
+        request.setUrl(QUrl(QString("http://127.0.0.1:9090/get_dmx?u=%1").arg(i)));
+        qnam.get(request);
+    }
+}
+
+void LcdClient::handleHttpResponse(QNetworkReply *reply)
+{
+    if (reply->error()) {
+        qDebug() << reply->errorString();
+        return;
+    }
+
+    int universe = reply->url().toString().right(1).toInt();
+
+    QString answer = reply->readAll();
+    QJsonArray jsonArray = QJsonDocument::fromJson(answer.toUtf8())["dmx"].toArray();
+
+    //qDebug() << "ID:" << universe << ": " << jsonArray[0].toInt();
+
+    lcdSocket.write(QString("widget_set universe%1 line2 1 2 \"%2%3%4%5%6%7%8%9\"\n")
+        .arg(universe)
+        .arg(jsonArray[0].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[1].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[2].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[3].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[4].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[5].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[6].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[7].toInt(), 2, 16, QLatin1Char('0'))
+        .toLatin1()
+    );
 }
 
 void LcdClient::handleSocketError(QAbstractSocket::SocketError socketError)
