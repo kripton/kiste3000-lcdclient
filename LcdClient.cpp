@@ -152,7 +152,7 @@ QString LcdClient::getRPiStatus() {
 void LcdClient::readServerResponse()
 {
     QString response = lcdSocket.readAll();
-    qDebug() << "LCDd resp:" << response;
+    //qDebug() << "LCDd resp:" << response;
 
     if (response.startsWith("connect ")) {
         lcdSocket.write("screen_add time\n");
