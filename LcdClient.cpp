@@ -26,8 +26,8 @@ LcdClient::LcdClient(QObject *parent)
 void LcdClient::update()
 {
     getMachineTemp();
-    lcdSocket.write(QString("widget_set main line1 1 1 15 1 m 4 \"%2\"\n").arg(getMachineIPs()).toLatin1());
-    lcdSocket.write(QString("widget_set main line2 1 2 16 1 m 4 \"Time:%1 Temp:%2 CPU:%3\"\n")
+    lcdSocket.write(QString("widget_set main line1 1 1 \"%2\"\n").arg(getMachineIPs().right(13)).toLatin1());
+    lcdSocket.write(QString("widget_set main line2 1 2 \"%1GT%2C%3\"\n")
         .arg(QTime::currentTime().toString("HH:mm:ss"))
         .arg(getMachineTemp())
         .arg(getMachineCPULoad())
@@ -62,13 +62,13 @@ QString LcdClient::getMachineCPULoad() {
 
     int cpuLoad = qRound(100.0 * (((double) diffUser + (double) diffSystem + (double) diffNice) / (double) diffTotal));
 
-    return QString("%1\%").arg((int)cpuLoad, 3, 10, QLatin1Char('0'));
+    return QString("%1").arg((int)cpuLoad, 3, 10, QLatin1Char('0'));
 }
 
 QString LcdClient::getMachineTemp() {
     fileTemp.seek(0);
     float temp = QString(fileTemp.readAll()).toFloat() / 1000;
-    return QString("%1°C").arg(qRound(temp));
+    return QString("%1").arg(qRound(temp));
 }
 
 // Generates a string containing all "external" network interfaces and their IPv4 addresses
@@ -117,8 +117,8 @@ void LcdClient::readServerResponse()
 
     if (response.startsWith("connect ")) {
         lcdSocket.write("screen_add main\n");
-        lcdSocket.write("widget_add main line1 scroller\n");
-        lcdSocket.write("widget_add main line2 scroller\n");
+        lcdSocket.write("widget_add main line1 string\n");
+        lcdSocket.write("widget_add main line2 string\n");
         updateTimer.start(1000);
     }
 }
