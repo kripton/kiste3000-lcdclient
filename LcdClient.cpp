@@ -31,7 +31,7 @@ void LcdClient::update()
         .arg(QTime::currentTime().toString("HH:mm:ss"))
         .arg(getMachineTemp())
         .arg(getMachineCPULoad())
-        .toUtf8()
+        .toLatin1()
     );
 }
 
@@ -45,7 +45,7 @@ QString LcdClient::getMachineCPULoad() {
 QString LcdClient::getMachineTemp() {
     fileTemp.seek(0);
     float temp = QString(fileTemp.readAll()).toFloat() / 1000;
-    return QString("%1�C").arg(qRound(temp));
+    return QString("%1°C").arg(qRound(temp));
 }
 
 // Generates a string containing all "external" network interfaces and their IPv4 addresses
