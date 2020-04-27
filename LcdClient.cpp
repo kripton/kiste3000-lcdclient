@@ -26,8 +26,8 @@ LcdClient::LcdClient(QObject *parent)
 void LcdClient::update()
 {
     getMachineTemp();
-    lcdSocket.write(QString("widget_set main line1 1 1 15 1 m 2 \"%2\"\n").arg(getMachineIPs()).toUtf8());
-    lcdSocket.write(QString("widget_set main line2 1 2 16 1 m 2 \"Time:%1 Temp:%2 CPU:%3\"\n")
+    lcdSocket.write(QString("widget_set main line1 1 1 15 1 m 4 \"%2\"\n").arg(getMachineIPs()).toLatin1());
+    lcdSocket.write(QString("widget_set main line2 1 2 16 1 m 4 \"Time:%1 Temp:%2 CPU:%3\"\n")
         .arg(QTime::currentTime().toString("HH:mm:ss"))
         .arg(getMachineTemp())
         .arg(getMachineCPULoad())
@@ -37,9 +37,32 @@ void LcdClient::update()
 
 QString LcdClient::getMachineCPULoad() {
     fileStat.seek(0);
-    QString line = fileStat.readLine();
-    qDebug() << "STAT: " << line;
-    return QString("098%");
+    QString line = fileStat.readLine().trimmed();
+    QStringList parts = line.split(' ', QString::SkipEmptyParts);
+
+    loadStruct currentLoad;
+    unsigned long diffUser, diffSystem, diffNice, diffTotal;
+
+    currentLoad.user = parts[1].toULong();
+    currentLoad.nice = parts[2].toULong();
+    currentLoad.system = parts[3].toULong();
+    currentLoad.idle = parts[4].toULong();
+    currentLoad.idle += parts[5].toULong();     // iowait
+    currentLoad.system += parts[6].toULong();   // irq
+    currentLoad.system += parts[7].toULong();   // softirq
+
+    currentLoad.total = currentLoad.user + currentLoad.nice + currentLoad.system + currentLoad.idle;
+
+    diffUser = currentLoad.user - lastLoad.user;
+    diffSystem = currentLoad.system - lastLoad.system;
+    diffNice = currentLoad.nice - lastLoad.nice;
+    diffTotal = currentLoad.total - lastLoad.total;
+
+    lastLoad = currentLoad;
+
+    int cpuLoad = qRound(100.0 * (((double) diffUser + (double) diffSystem + (double) diffNice) / (double) diffTotal));
+
+    return QString("%1\%").arg((int)cpuLoad, 3, 10, QLatin1Char('0'));
 }
 
 QString LcdClient::getMachineTemp() {

@@ -14,6 +14,15 @@
 #ifndef LCDCLIENT_H_
 #define LCDCLIENT_H_
 
+typedef struct
+{
+    unsigned long user;
+    unsigned long system;
+    unsigned long nice;
+    unsigned long idle;
+    unsigned long total;
+} loadStruct;
+
 class LcdClient : public QObject
 {
     Q_OBJECT
@@ -31,6 +40,8 @@ private:
     QTcpSocket lcdSocket;
     QFile fileTemp;
     QFile fileStat;
+
+    loadStruct lastLoad;
 
     QString getMachineIPs();
     QString getMachineTemp();
