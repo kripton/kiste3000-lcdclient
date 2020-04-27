@@ -15,7 +15,43 @@ LcdClient::LcdClient(QObject *parent)
 
 void LcdClient::update()
 {
-    lcdSocket.write(QString("widget_set main line1 1 1 LINE1\n").toUtf8());
+    QHash<QString, QList<QHostAddress>> ifaceIPs;
+    QList<QNetworkInterface> allInterfaces = QNetworkInterface::allInterfaces();
+    QNetworkInterface iface;
+    QString textToBeScrolled;
+
+    foreach(iface, allInterfaces) {
+        QList<QNetworkAddressEntry> allEntries = iface.addressEntries();
+        QList<QHostAddress> addresses;
+        QNetworkAddressEntry entry;
+        foreach (entry, allEntries) {
+            if (!entry.ip().isLoopback() &&
+                !entry.ip().isMulticast() &&
+                (entry.ip().protocol() == QAbstractSocket::IPv4Protocol) &&
+                !iface.name().startsWith("docker")
+            ) {
+                addresses.append(entry.ip());
+            }
+        }
+
+        if (addresses.count()) {
+            ifaceIPs.insert(iface.name(), addresses);
+
+            textToBeScrolled +=  iface.name() + ":";
+            QHostAddress adr;
+            foreach (adr, addresses) {
+                textToBeScrolled += adr.toString() + ",";
+            }
+        }
+    }
+    textToBeScrolled = textToBeScrolled.trimmed();
+    if (textToBeScrolled.endsWith(',')) {
+        textToBeScrolled.chop(1);
+    }
+
+    qDebug() << textToBeScrolled;
+
+    lcdSocket.write(QString("widget_set main line1 1 1 15 1 m 2 %2\n").arg(textToBeScrolled).toUtf8());
     lcdSocket.write(QString("widget_set main line2 1 2 %1?TxxCxxx\n").arg(QTime::currentTime().toString("HH:mm:ss")).toUtf8());
 }
 
@@ -26,7 +62,7 @@ void LcdClient::readServerResponse()
 
     if (response.startsWith("connect ")) {
         lcdSocket.write("screen_add main\n");
-        lcdSocket.write("widget_add main line1 string\n");
+        lcdSocket.write("widget_add main line1 scroller\n");
         lcdSocket.write("widget_add main line2 string\n");
         updateTimer.start(1000);
     }

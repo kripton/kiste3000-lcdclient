@@ -7,6 +7,9 @@
 #include <QTimer>
 #include <QFile>
 #include <QTcpSocket>
+#include <QHash>
+
+#include <QNetworkInterface>
 
 #ifndef LCDCLIENT_H_
 #define LCDCLIENT_H_
@@ -25,7 +28,6 @@ private slots:
 
 private:
     QTimer updateTimer;
-    QFile statFile;
     QTcpSocket lcdSocket;
 };
 #endif  // LCDCLIENT_H_
