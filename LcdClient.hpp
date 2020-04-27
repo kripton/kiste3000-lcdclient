@@ -30,7 +30,10 @@ private:
     QTimer updateTimer;
     QTcpSocket lcdSocket;
     QFile fileTemp;
+    QFile fileStat;
 
     QString getMachineIPs();
+    QString getMachineTemp();
+    QString getMachineCPULoad();
 };
 #endif  // LCDCLIENT_H_

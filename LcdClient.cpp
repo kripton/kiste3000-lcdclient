@@ -5,6 +5,16 @@ LcdClient::LcdClient(QObject *parent)
 {
     connect(&updateTimer, &QTimer::timeout, this, &LcdClient::update);
 
+    fileTemp.setFileName("/sys/devices/virtual/thermal/thermal_zone0/temp");
+    if (!fileTemp.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open thermal_zone file!";
+    }
+
+    fileStat.setFileName("/proc/stat");
+    if (!fileStat.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open /proc/stat!";
+    }
+
     connect(&lcdSocket, &QIODevice::readyRead, this, &LcdClient::readServerResponse);
     connect(&lcdSocket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), this, &LcdClient::handleSocketError);
     lcdSocket.abort();
@@ -15,10 +25,30 @@ LcdClient::LcdClient(QObject *parent)
 
 void LcdClient::update()
 {
-    lcdSocket.write(QString("widget_set main line1 1 1 15 1 m 2 %2\n").arg(getMachineIPs()).toUtf8());
-    lcdSocket.write(QString("widget_set main line2 1 2 %1?TxxCxxx\n").arg(QTime::currentTime().toString("HH:mm:ss")).toUtf8());
+    getMachineTemp();
+    lcdSocket.write(QString("widget_set main line1 1 1 15 1 m 2 \"%2\"\n").arg(getMachineIPs()).toUtf8());
+    lcdSocket.write(QString("widget_set main line2 1 2 16 1 m 2 \"Time:%1 Temp:%2 CPU:%3\"\n")
+        .arg(QTime::currentTime().toString("HH:mm:ss"))
+        .arg(getMachineTemp())
+        .arg(getMachineCPULoad())
+        .toUtf8()
+    );
 }
 
+QString LcdClient::getMachineCPULoad() {
+    fileStat.seek(0);
+    QString line = fileStat.readLine();
+    qDebug() << "STAT: " << line;
+    return QString("098%");
+}
+
+QString LcdClient::getMachineTemp() {
+    fileTemp.seek(0);
+    float temp = QString(fileTemp.readAll()).toFloat() / 1000;
+    return QString("%1�C").arg(qRound(temp));
+}
+
+// Generates a string containing all "external" network interfaces and their IPv4 addresses
 QString LcdClient::getMachineIPs() {
     QHash<QString, QList<QHostAddress>> ifaceIPs;
     QList<QNetworkInterface> allInterfaces = QNetworkInterface::allInterfaces();
@@ -42,17 +72,17 @@ QString LcdClient::getMachineIPs() {
         if (addresses.count()) {
             ifaceIPs.insert(iface.name(), addresses);
 
-            machineIPs +=  iface.name() + ":";
+            machineIPs +=  " " + iface.name() + ":";
             QHostAddress adr;
             foreach (adr, addresses) {
                 machineIPs += adr.toString() + ",";
             }
+            if (machineIPs.endsWith(',')) {
+                machineIPs.chop(1);
+            }
         }
     }
     machineIPs = machineIPs.trimmed();
-    if (machineIPs.endsWith(',')) {
-        machineIPs.chop(1);
-    }
 
     return machineIPs;
 }
@@ -65,7 +95,7 @@ void LcdClient::readServerResponse()
     if (response.startsWith("connect ")) {
         lcdSocket.write("screen_add main\n");
         lcdSocket.write("widget_add main line1 scroller\n");
-        lcdSocket.write("widget_add main line2 string\n");
+        lcdSocket.write("widget_add main line2 scroller\n");
         updateTimer.start(1000);
     }
 }
