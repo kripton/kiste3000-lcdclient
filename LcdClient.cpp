@@ -25,12 +25,19 @@ LcdClient::LcdClient(QObject *parent)
 
 void LcdClient::update()
 {
-    getMachineTemp();
-    lcdSocket.write(QString("widget_set main line1 1 1 15 1 m 4 \"%2\"\n").arg(getMachineIPs()).toLatin1());
-    lcdSocket.write(QString("widget_set main line2 1 2 16 1 m 4 \"Time:%1 Temp:%2 CPU:%3\"\n")
-        .arg(QTime::currentTime().toString("HH:mm:ss"))
-        .arg(getMachineTemp())
+    lcdSocket.write(QString("widget_set time line1 Uhrzeit\n").toLatin1());
+    lcdSocket.write(QString("widget_set time line2 1 2 \"%1\"\n").arg(QDateTime::currentDateTime().toString("dd.MM.  HH:mm:ss")).toLatin1());
+
+    lcdSocket.write(QString("widget_set sys line1 System\n").toLatin1());
+    lcdSocket.write(QString("widget_set sys line2 1 2 \"CPU:%1  T:%2°C\"\n")
         .arg(getMachineCPULoad())
+        .arg(getMachineTemp())
+        .toLatin1()
+    );
+
+    lcdSocket.write(QString("widget_set net line1 eth0\n").toLatin1());
+    lcdSocket.write(QString("widget_set net line2 1 2 \"%1\"\n")
+        .arg(getMachineIPs().right(13))
         .toLatin1()
     );
 }
@@ -116,9 +123,15 @@ void LcdClient::readServerResponse()
     qDebug() << "LCDd resp:" << response;
 
     if (response.startsWith("connect ")) {
-        lcdSocket.write("screen_add main\n");
-        lcdSocket.write("widget_add main line1 scroller\n");
-        lcdSocket.write("widget_add main line2 scroller\n");
+        lcdSocket.write("screen_add time\n");
+        lcdSocket.write("widget_add time line1 title\n");
+        lcdSocket.write("widget_add time line2 string\n");
+        lcdSocket.write("screen_add sys\n");
+        lcdSocket.write("widget_add sys line1 title\n");
+        lcdSocket.write("widget_add sys line2 string\n");
+        lcdSocket.write("screen_add net\n");
+        lcdSocket.write("widget_add net line1 title\n");
+        lcdSocket.write("widget_add net line2 string\n");
         updateTimer.start(1000);
     }
 }
