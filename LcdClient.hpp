@@ -29,5 +29,8 @@ private slots:
 private:
     QTimer updateTimer;
     QTcpSocket lcdSocket;
+    QFile fileTemp;
+
+    QString getMachineIPs();
 };
 #endif  // LCDCLIENT_H_
