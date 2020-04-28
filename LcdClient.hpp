@@ -49,12 +49,14 @@ private:
     QNetworkAccessManager qnam;
     QNetworkRequest request;
 
+    QString currentScreen;
+
     loadStruct lastLoad;
 
     QString getMachineIPs();
     QString getMachineTemp();
     QString getMachineCPULoad();
     QString getRPiStatus();
-    void updateDmxUniverses();
+    void updateDmxUniverse(int universe);
 };
 #endif  // LCDCLIENT_H_

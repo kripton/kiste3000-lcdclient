@@ -37,23 +37,26 @@ LcdClient::LcdClient(QObject *parent)
 
 void LcdClient::update()
 {
-    updateDmxUniverses();
-
-    lcdSocket.write(QString("widget_set time line1 Uhrzeit\n").toLatin1());
-    lcdSocket.write(QString("widget_set time line2 1 2 \"%1\"\n").arg(QDateTime::currentDateTime().toString("dd.MM.  HH:mm:ss")).toLatin1());
-
-    lcdSocket.write(QString("widget_set sys line1 \"Status:%1\"\n").arg(getRPiStatus()).toLatin1());
-    lcdSocket.write(QString("widget_set sys line2 1 2 \"CPU:%1  T:%2°C\"\n")
-        .arg(getMachineCPULoad())
-        .arg(getMachineTemp())
-        .toLatin1()
-    );
-
-    lcdSocket.write(QString("widget_set net line1 Netzwerk\n").toLatin1());
-    lcdSocket.write(QString("widget_set net line2 1 2 15 2 m 2 \"%1\"\n")
-        .arg(getMachineIPs())
-        .toLatin1()
-    );
+    if (currentScreen == "time") {
+        lcdSocket.write(QString("widget_set time line1 Uhrzeit\n").toLatin1());
+        lcdSocket.write(QString("widget_set time line2 1 2 \"%1\"\n").arg(QDateTime::currentDateTime().toString("dd.MM.  HH:mm:ss")).toLatin1());
+    } else if (currentScreen == "net") {
+        lcdSocket.write(QString("widget_set net line1 Netzwerk\n").toLatin1());
+        lcdSocket.write(QString("widget_set net line2 1 2 15 2 m 2 \"%1\"\n")
+         .arg(getMachineIPs())
+         .toLatin1()
+        );
+    } else if (currentScreen == "sys") {
+        lcdSocket.write(QString("widget_set sys line1 \"Status:%1\"\n").arg(getRPiStatus()).toLatin1());
+        lcdSocket.write(QString("widget_set sys line2 1 2 \"CPU:%1  T:%2°C\"\n")
+            .arg(getMachineCPULoad())
+            .arg(getMachineTemp())
+            .toLatin1()
+        );
+    } else if (currentScreen.startsWith("universe")) {
+        int universe = currentScreen.right(1).toInt();
+        updateDmxUniverse(universe);
+    }
 }
 
 QString LcdClient::getMachineCPULoad() {
@@ -152,33 +155,44 @@ QString LcdClient::getRPiStatus() {
 void LcdClient::readServerResponse()
 {
     QString response = lcdSocket.readAll();
+    QStringList parts = response.split("\n", QString::SkipEmptyParts);
     //qDebug() << "LCDd resp:" << response;
 
-    if (response.startsWith("connect ")) {
-        lcdSocket.write("screen_add time\n");
-        lcdSocket.write("widget_add time line1 title\n");
-        lcdSocket.write("widget_add time line2 string\n");
-        lcdSocket.write("screen_add sys\n");
-        lcdSocket.write("widget_add sys line1 title\n");
-        lcdSocket.write("widget_add sys line2 string\n");
-        lcdSocket.write("screen_add net\n");
-        lcdSocket.write("widget_add net line1 title\n");
-        lcdSocket.write("widget_add net line2 scroller\n");
-        for (int i = 1; i <= 8; i++) {
-            lcdSocket.write(QString("screen_add universe%1\n").arg(i).toLatin1());
-            lcdSocket.write(QString("widget_add universe%1 line1 title\n").arg(i).toLatin1());
-            lcdSocket.write(QString("widget_add universe%1 line2 string\n").arg(i).toLatin1());
-            lcdSocket.write(QString("widget_set universe%1 line1 \"Universe %1\"\n").arg(i).toLatin1());
+    QString resp;
+    foreach(resp, parts) {
+        if (resp == "success") {
+            continue;
         }
-        updateTimer.start(1000);
+        qDebug() << "LCDd resp:" << resp;
+
+        if (resp.startsWith("connect ")) {
+            lcdSocket.write("screen_add time\n");
+            lcdSocket.write("widget_add time line1 title\n");
+            lcdSocket.write("widget_add time line2 string\n");
+            lcdSocket.write("screen_add sys\n");
+            lcdSocket.write("widget_add sys line1 title\n");
+            lcdSocket.write("widget_add sys line2 string\n");
+            lcdSocket.write("screen_add net\n");
+            lcdSocket.write("widget_add net line1 title\n");
+            lcdSocket.write("widget_add net line2 scroller\n");
+            for (int i = 1; i <= 8; i++) {
+                lcdSocket.write(QString("screen_add universe%1\n").arg(i).toLatin1());
+                lcdSocket.write(QString("widget_add universe%1 line1 title\n").arg(i).toLatin1());
+                lcdSocket.write(QString("widget_add universe%1 line2 string\n").arg(i).toLatin1());
+                lcdSocket.write(QString("widget_set universe%1 line1 \"Universe %1\"\n").arg(i).toLatin1());
+            }
+            updateTimer.start(1000);
+        } else if (resp.startsWith("listen")) {
+            currentScreen = resp.split(" ")[1].trimmed();
+            qDebug() << "SCREEN CHANGED TO " << currentScreen;
+            update();
+        }
     }
 }
 
-void LcdClient::updateDmxUniverses() {
-    for (int i = 1; i <= 8; i++) {
-        request.setUrl(QUrl(QString("http://127.0.0.1:9090/get_dmx?u=%1").arg(i)));
-        qnam.get(request);
-    }
+void LcdClient::updateDmxUniverse(int universe) {
+    request.setUrl(QUrl(QString("http://127.0.0.1:9090/get_dmx?u=%1").arg(universe)));
+    qnam.get(request);
 }
 
 void LcdClient::handleHttpResponse(QNetworkReply *reply)
