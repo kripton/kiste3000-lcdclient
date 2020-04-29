@@ -204,7 +204,7 @@ void LcdClient::readServerResponse()
                 lcdSocket.write(QString("widget_add universe%1 line2 string\n").arg(i).toLatin1());
                 lcdSocket.write(QString("widget_set universe%1 line1 \"Universe %1\"\n").arg(i).toLatin1());
             }
-            updateTimer.start(1000);
+            updateTimer.start(250);
         } else if (line.startsWith("listen")) {
             currentScreen = line.split(" ")[1].trimmed();
             update();
