@@ -17,6 +17,8 @@
 #ifndef LCDCLIENT_H_
 #define LCDCLIENT_H_
 
+// One set of CPU load values
+// for calculating the difference
 typedef struct
 {
     unsigned long user;

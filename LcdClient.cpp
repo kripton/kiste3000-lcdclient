@@ -1,5 +1,6 @@
 #include "LcdClient.hpp"
 
+// Constructor and initialization routines (Opening files, connecting to LCDd, ...)
 LcdClient::LcdClient(QObject *parent)
     : QObject(parent)
 {
@@ -35,19 +36,26 @@ LcdClient::LcdClient(QObject *parent)
     lcdSocket.write("hello\n");
 }
 
+// Update the currently visible screen content
 void LcdClient::update()
 {
     if (currentScreen == "time") {
         lcdSocket.write(QString("widget_set time line1 Uhrzeit\n").toLatin1());
-        lcdSocket.write(QString("widget_set time line2 1 2 \"%1\"\n").arg(QDateTime::currentDateTime().toString("dd.MM.  HH:mm:ss")).toLatin1());
+        lcdSocket.write(QString("widget_set time line2 1 2 \"%1\"\n")
+            .arg(QDateTime::currentDateTime().toString("dd.MM.  HH:mm:ss"))
+            .toLatin1()
+        );
     } else if (currentScreen == "net") {
         lcdSocket.write(QString("widget_set net line1 Netzwerk\n").toLatin1());
         lcdSocket.write(QString("widget_set net line2 1 2 15 2 m 2 \"%1\"\n")
-         .arg(getMachineIPs())
-         .toLatin1()
+            .arg(getMachineIPs())
+            .toLatin1()
         );
     } else if (currentScreen == "sys") {
-        lcdSocket.write(QString("widget_set sys line1 \"Status:%1\"\n").arg(getRPiStatus()).toLatin1());
+        lcdSocket.write(QString("widget_set sys line1 \"Status:%1\"\n")
+            .arg(getRPiStatus())
+            .toLatin1()
+        );
         lcdSocket.write(QString("widget_set sys line2 1 2 \"CPU:%1  T:%2°C\"\n")
             .arg(getMachineCPULoad())
             .arg(getMachineTemp())
@@ -59,7 +67,9 @@ void LcdClient::update()
     }
 }
 
-QString LcdClient::getMachineCPULoad() {
+// Calculate the current CPU usage
+QString LcdClient::getMachineCPULoad()
+{
     fileStat.seek(0);
     QString line = fileStat.readLine().trimmed();
     QStringList parts = line.split(' ', QString::SkipEmptyParts);
@@ -89,23 +99,31 @@ QString LcdClient::getMachineCPULoad() {
     return QString("%1\%").arg((int)cpuLoad, 3, 10, QLatin1Char('0'));
 }
 
-QString LcdClient::getMachineTemp() {
+// Read the current thermal_zone temperature
+QString LcdClient::getMachineTemp()
+{
     fileTemp.seek(0);
     float temp = QString(fileTemp.readAll()).toFloat() / 1000;
     return QString("%1°C").arg(qRound(temp));
 }
 
 // Generates a string containing all "external" network interfaces and their IPv4 addresses
-QString LcdClient::getMachineIPs() {
+QString LcdClient::getMachineIPs()
+{
+    // Step 1: Get a list of all network interfaces
     QHash<QString, QList<QHostAddress>> ifaceIPs;
     QList<QNetworkInterface> allInterfaces = QNetworkInterface::allInterfaces();
     QNetworkInterface iface;
     QString machineIPs;
 
+    // Step 2: For each interface, get a list of all Addresses of that interface
     foreach(iface, allInterfaces) {
         QList<QNetworkAddressEntry> allEntries = iface.addressEntries();
         QList<QHostAddress> addresses;
         QNetworkAddressEntry entry;
+        // Step 3: For each address, find all
+        //         Non-Loopback, Non-Multicast IPv4
+        //         and also interface name must not start with "docker"
         foreach (entry, allEntries) {
             if (!entry.ip().isLoopback() &&
                 !entry.ip().isMulticast() &&
@@ -116,6 +134,9 @@ QString LcdClient::getMachineIPs() {
             }
         }
 
+        // Step 4: If an address remained for that interface,
+        //         add it + the IPs to the final QHash (currently unused)
+        //         and a string-representation thereof (that is being returned)
         if (addresses.count()) {
             ifaceIPs.insert(iface.name(), addresses);
 
@@ -134,7 +155,9 @@ QString LcdClient::getMachineIPs() {
     return machineIPs;
 }
 
-QString LcdClient::getRPiStatus() {
+// Get the RPi status (temp throttle and undervoltage)
+QString LcdClient::getRPiStatus()
+{
     fileVoltAlarm.seek(0);
     fileTempThrottle.seek(0);
 
@@ -152,20 +175,20 @@ QString LcdClient::getRPiStatus() {
     }
 }
 
+// Parse responses from LCDd (via TCP socket)
 void LcdClient::readServerResponse()
 {
     QString response = lcdSocket.readAll();
-    QStringList parts = response.split("\n", QString::SkipEmptyParts);
-    //qDebug() << "LCDd resp:" << response;
+    QStringList lines = response.split("\n", QString::SkipEmptyParts);
 
-    QString resp;
-    foreach(resp, parts) {
-        if (resp == "success") {
+    QString line;
+    foreach(line, lines) {
+        if (line == "success") {
             continue;
         }
-        qDebug() << "LCDd resp:" << resp;
+        qDebug() << "LCDd resp:" << line;
 
-        if (resp.startsWith("connect ")) {
+        if (line.startsWith("connect ")) {
             lcdSocket.write("screen_add time\n");
             lcdSocket.write("widget_add time line1 title\n");
             lcdSocket.write("widget_add time line2 string\n");
@@ -182,19 +205,20 @@ void LcdClient::readServerResponse()
                 lcdSocket.write(QString("widget_set universe%1 line1 \"Universe %1\"\n").arg(i).toLatin1());
             }
             updateTimer.start(1000);
-        } else if (resp.startsWith("listen")) {
-            currentScreen = resp.split(" ")[1].trimmed();
-            qDebug() << "SCREEN CHANGED TO " << currentScreen;
+        } else if (line.startsWith("listen")) {
+            currentScreen = line.split(" ")[1].trimmed();
             update();
         }
     }
 }
 
+// Request the current DMX values of a given universe ID from OLAd
 void LcdClient::updateDmxUniverse(int universe) {
     request.setUrl(QUrl(QString("http://127.0.0.1:9090/get_dmx?u=%1").arg(universe)));
     qnam.get(request);
 }
 
+// Parse the HTTP response sent from OLAd (DMX values)
 void LcdClient::handleHttpResponse(QNetworkReply *reply)
 {
     if (reply->error()) {
@@ -223,6 +247,7 @@ void LcdClient::handleHttpResponse(QNetworkReply *reply)
     );
 }
 
+// Handle socket errors on LCDd communication socket
 void LcdClient::handleSocketError(QAbstractSocket::SocketError socketError)
 {
     switch (socketError) {
