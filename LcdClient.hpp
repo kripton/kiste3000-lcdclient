@@ -51,6 +51,8 @@ private:
     QNetworkAccessManager qnam;
     QNetworkRequest request;
 
+    int universeAllZeroes[8];
+
     QString currentScreen;
 
     loadStruct lastLoad;

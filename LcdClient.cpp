@@ -4,6 +4,10 @@
 LcdClient::LcdClient(QObject *parent)
     : QObject(parent)
 {
+    for (int i = 0; i < 8; i++) {
+        universeAllZeroes[i] = 1;
+    }
+
     connect(&updateTimer, &QTimer::timeout, this, &LcdClient::update);
 
     connect(&qnam, &QNetworkAccessManager::finished, this, &LcdClient::handleHttpResponse);
@@ -65,6 +69,9 @@ void LcdClient::update()
         int universe = currentScreen.right(1).toInt();
         updateDmxUniverse(universe);
     }
+
+    // Check the RPi status in any case to turn the backlight red if bad
+    getRPiStatus();
 }
 
 // Calculate the current CPU usage
@@ -165,10 +172,16 @@ QString LcdClient::getRPiStatus()
     int tempThrottle = QString(fileTempThrottle.readAll()).toInt();
 
     if (voltAlarm && !tempThrottle) {
+        lcdSocket.write("backlight off\n");
+        lcdSocket.write("backlight red\n");
         return QString("Saft");
     } else if (!voltAlarm && tempThrottle) {
+        lcdSocket.write("backlight off\n");
+        lcdSocket.write("backlight red\n");
         return QString("Hitz");
     } else if (voltAlarm && tempThrottle) {
+        lcdSocket.write("backlight off\n");
+        lcdSocket.write("backlight red\n");
         return QString("H&S");
     } else {
         return QString("Gut");
@@ -189,6 +202,8 @@ void LcdClient::readServerResponse()
         qDebug() << "LCDd resp:" << line;
 
         if (line.startsWith("connect ")) {
+            lcdSocket.write("backlight off\n");
+            lcdSocket.write("backlight red\n");
             lcdSocket.write("screen_add time\n");
             lcdSocket.write("widget_add time line1 title\n");
             lcdSocket.write("widget_add time line2 string\n");
@@ -230,6 +245,34 @@ void LcdClient::handleHttpResponse(QNetworkReply *reply)
 
     QString answer = reply->readAll();
     QJsonArray jsonArray = QJsonDocument::fromJson(answer.toUtf8())["dmx"].toArray();
+
+    // Check if the array is empty or all zero. If not, save that info
+    universeAllZeroes[universe - 1] = 1;
+    if (jsonArray.size() != 0) {
+        foreach (const QJsonValue & value, jsonArray) {
+            if (value.toInt() != 0) {
+                universeAllZeroes[universe - 1] = 0;
+                break;
+            }
+        }
+    }
+
+    // Now check if all 8 universes are allZero
+    int allZero = 1;
+    for (int i = 0; i < 8; i++) {
+        if (universeAllZeroes[i] != 1) {
+            allZero = 0;
+            break;
+        }
+    }
+
+    if (allZero) {
+        lcdSocket.write("backlight off\n");
+        lcdSocket.write("backlight blue\n");
+    } else {
+        lcdSocket.write("backlight off\n");
+        lcdSocket.write("backlight green\n");
+    }
 
     //qDebug() << "ID:" << universe << ": " << jsonArray[0].toInt();
 
