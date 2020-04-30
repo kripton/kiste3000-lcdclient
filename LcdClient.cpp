@@ -278,6 +278,7 @@ void LcdClient::handleHttpResponse(QNetworkReply *reply)
 // Handle socket errors on LCDd communication socket
 void LcdClient::handleSocketError(QAbstractSocket::SocketError socketError)
 {
+    qWarning() << "LCDd socket error: " << socketError;
     switch (socketError) {
     case QAbstractSocket::RemoteHostClosedError:
         break;
