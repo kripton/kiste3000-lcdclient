@@ -208,6 +208,10 @@ void LcdClient::readServerResponse()
         qDebug() << "LCDd resp:" << line;
 
         if (line.startsWith("connect ")) {
+            // Set client name
+            lcdSocket.write("client_set -name Kiste3000\n");
+
+            // Add info screens
             lcdSocket.write("screen_add time\n");
             lcdSocket.write("widget_add time line1 title\n");
             lcdSocket.write("widget_add time line2 string\n");
@@ -226,10 +230,36 @@ void LcdClient::readServerResponse()
                     .arg(universeOffset[i - 1] + 1, 3, 10, QLatin1Char('0'))
                     .toLatin1());
             }
+
+            // Add menu structure
+            lcdSocket.write("menu_add_item \"\" system menu System\n");
+            lcdSocket.write("menu_add_item system shutdown action \"Nobb foahre ...\"\n");
+            lcdSocket.write("menu_add_item system startqlcplus action \"QLC+ stadde ...\"\n");
+            lcdSocket.write("menu_add_item \"\" display menu \"Anzeige\"\n");
+            for (int i = 1; i <= 8; i++) {
+                lcdSocket.write(QString("menu_add_item display offset%1 numeric \"U%2 Start\" -value \"1\" -minvalue \"1\" -maxvalue \"505\"\n")
+                    .arg(i)
+                    .arg(i)
+                    .toLatin1());
+            }
+            lcdSocket.write("menu_add_item \"\" network menu \"Netzwerk\"\n");
+
+            // Start the periodic updating of info screens and RPi status
             updateTimer.start(250);
+
         } else if (line.startsWith("listen")) {
             currentScreen = line.split(" ")[1].trimmed();
             update();
+
+        } else if (line.startsWith("menuevent update offset")) {
+            int universe = line.mid(23, 1).toInt();
+            int val = line.split(" ")[3].toInt();
+            universeOffset[universe - 1] = val - 1;
+
+            lcdSocket.write(QString("widget_set universe%1 line1 \"U_%1  %2->\"\n")
+                .arg(universe)
+                .arg(universeOffset[universe - 1] + 1, 3, 10, QLatin1Char('0'))
+                .toLatin1());
         }
     }
 }
