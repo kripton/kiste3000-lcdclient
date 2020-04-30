@@ -51,7 +51,14 @@ private:
     QNetworkAccessManager qnam;
     QNetworkRequest request;
 
+    // Used to switch backlight either
+    // BLUE = all values of all universes = 0
+    // GREEN = some value in any universe != 0
     int universeAllZeroes[8];
+
+    // Offest for each universe screen storing the
+    // first channel number to be displayed (0 based)
+    int universeOffset[8];
 
     // Will add RED backlight if != 0
     int machineProblem;

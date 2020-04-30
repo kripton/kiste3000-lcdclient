@@ -8,6 +8,10 @@ LcdClient::LcdClient(QObject *parent)
         universeAllZeroes[i] = 1;
     }
 
+    for (int i = 0; i < 8; i++) {
+        universeOffset[i] = 0;
+    }
+
     connect(&updateTimer, &QTimer::timeout, this, &LcdClient::update);
 
     connect(&qnam, &QNetworkAccessManager::finished, this, &LcdClient::handleHttpResponse);
@@ -217,7 +221,10 @@ void LcdClient::readServerResponse()
                 lcdSocket.write(QString("screen_add universe%1\n").arg(i).toLatin1());
                 lcdSocket.write(QString("widget_add universe%1 line1 title\n").arg(i).toLatin1());
                 lcdSocket.write(QString("widget_add universe%1 line2 string\n").arg(i).toLatin1());
-                lcdSocket.write(QString("widget_set universe%1 line1 \"Universe %1\"\n").arg(i).toLatin1());
+                lcdSocket.write(QString("widget_set universe%1 line1 \"U_%1  %2->\"\n")
+                    .arg(i)
+                    .arg(universeOffset[i - 1] + 1, 3, 10, QLatin1Char('0'))
+                    .toLatin1());
             }
             updateTimer.start(250);
         } else if (line.startsWith("listen")) {
@@ -259,18 +266,23 @@ void LcdClient::handleHttpResponse(QNetworkReply *reply)
 
     updateBacklight();
 
-    //qDebug() << "ID:" << universe << ": " << jsonArray[0].toInt();
+    int offset = universeOffset[universe - 1];
+
+    lcdSocket.write(QString("widget_set universe%1 line1 \"U_%1  %2->\"\n")
+        .arg(universe)
+        .arg(offset + 1, 3, 10, QLatin1Char('0'))
+        .toLatin1());
 
     lcdSocket.write(QString("widget_set universe%1 line2 1 2 \"%2%3%4%5%6%7%8%9\"\n")
         .arg(universe)
-        .arg(jsonArray[0].toInt(), 2, 16, QLatin1Char('0'))
-        .arg(jsonArray[1].toInt(), 2, 16, QLatin1Char('0'))
-        .arg(jsonArray[2].toInt(), 2, 16, QLatin1Char('0'))
-        .arg(jsonArray[3].toInt(), 2, 16, QLatin1Char('0'))
-        .arg(jsonArray[4].toInt(), 2, 16, QLatin1Char('0'))
-        .arg(jsonArray[5].toInt(), 2, 16, QLatin1Char('0'))
-        .arg(jsonArray[6].toInt(), 2, 16, QLatin1Char('0'))
-        .arg(jsonArray[7].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 0].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 1].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 2].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 3].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 4].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 5].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 6].toInt(), 2, 16, QLatin1Char('0'))
+        .arg(jsonArray[offset + 7].toInt(), 2, 16, QLatin1Char('0'))
         .toLatin1()
     );
 }
