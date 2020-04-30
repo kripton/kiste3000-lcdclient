@@ -70,8 +70,14 @@ void LcdClient::update()
         updateDmxUniverse(universe);
     }
 
-    // Check the RPi status in any case to turn the backlight red if bad
+    // Check the RPi status to set the machineProblem flag
     getRPiStatus();
+
+    // Update the backlight depending on machineProblem flag
+    // and DMX values
+    // When we just triggered the data fetching from OLA, the backlight
+    // will be updated again after the response has arrived
+    updateBacklight();
 }
 
 // Calculate the current CPU usage
@@ -171,19 +177,15 @@ QString LcdClient::getRPiStatus()
     int voltAlarm = QString(fileVoltAlarm.readAll()).toInt();
     int tempThrottle = QString(fileTempThrottle.readAll()).toInt();
 
+    machineProblem = 1;
     if (voltAlarm && !tempThrottle) {
-        lcdSocket.write("backlight off\n");
-        lcdSocket.write("backlight red\n");
         return QString("Saft");
     } else if (!voltAlarm && tempThrottle) {
-        lcdSocket.write("backlight off\n");
-        lcdSocket.write("backlight red\n");
         return QString("Hitz");
     } else if (voltAlarm && tempThrottle) {
-        lcdSocket.write("backlight off\n");
-        lcdSocket.write("backlight red\n");
         return QString("H&S");
     } else {
+        machineProblem = 0;
         return QString("Gut");
     }
 }
@@ -202,8 +204,6 @@ void LcdClient::readServerResponse()
         qDebug() << "LCDd resp:" << line;
 
         if (line.startsWith("connect ")) {
-            lcdSocket.write("backlight off\n");
-            lcdSocket.write("backlight red\n");
             lcdSocket.write("screen_add time\n");
             lcdSocket.write("widget_add time line1 title\n");
             lcdSocket.write("widget_add time line2 string\n");
@@ -257,22 +257,7 @@ void LcdClient::handleHttpResponse(QNetworkReply *reply)
         }
     }
 
-    // Now check if all 8 universes are allZero
-    int allZero = 1;
-    for (int i = 0; i < 8; i++) {
-        if (universeAllZeroes[i] != 1) {
-            allZero = 0;
-            break;
-        }
-    }
-
-    if (allZero) {
-        lcdSocket.write("backlight off\n");
-        lcdSocket.write("backlight blue\n");
-    } else {
-        lcdSocket.write("backlight off\n");
-        lcdSocket.write("backlight green\n");
-    }
+    updateBacklight();
 
     //qDebug() << "ID:" << universe << ": " << jsonArray[0].toInt();
 
@@ -302,5 +287,31 @@ void LcdClient::handleSocketError(QAbstractSocket::SocketError socketError)
         break;
     default:
         break;
+    }
+}
+
+// Sets the backlight depending on current RPi status
+// and DMX universe values (ALL zeroes?)
+void LcdClient::updateBacklight()
+{
+    lcdSocket.write("backlight off\n");
+
+    if (machineProblem) {
+        lcdSocket.write("backlight red\n");
+    }
+
+    // Now check if all 8 universes are allZero
+    int allZero = 1;
+    for (int i = 0; i < 8; i++) {
+        if (universeAllZeroes[i] != 1) {
+            allZero = 0;
+            break;
+        }
+    }
+
+    if (allZero) {
+        lcdSocket.write("backlight blue\n");
+    } else {
+        lcdSocket.write("backlight green\n");
     }
 }

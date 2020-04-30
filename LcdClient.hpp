@@ -53,6 +53,9 @@ private:
 
     int universeAllZeroes[8];
 
+    // Will add RED backlight if != 0
+    int machineProblem;
+
     QString currentScreen;
 
     loadStruct lastLoad;
@@ -62,5 +65,6 @@ private:
     QString getMachineCPULoad();
     QString getRPiStatus();
     void updateDmxUniverse(int universe);
+    void updateBacklight();
 };
 #endif  // LCDCLIENT_H_
