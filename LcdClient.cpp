@@ -243,6 +243,11 @@ void LcdClient::readServerResponse()
                     .toLatin1());
             }
             lcdSocket.write("menu_add_item \"\" network menu \"Netzwerk\"\n");
+            QStringList args = {"-g", "all", "dev"};
+            nmcli.start("nmcli", args);
+            nmcli.waitForFinished(2000);
+            QStringList devs = QString::fromUtf8(nmcli.readAllStandardOutput()).split("\n");
+            qDebug() << devs;
 
             // Start the periodic updating of info screens and RPi status
             updateTimer.start(250);

@@ -11,6 +11,7 @@
 #include <QNetworkAccessManager>
 #include <QUrl>
 #include <QJsonDocument>
+#include <QProcess>
 
 #include <QNetworkInterface>
 
@@ -50,6 +51,7 @@ private:
     QFile fileTempThrottle;
     QNetworkAccessManager qnam;
     QNetworkRequest request;
+    QProcess nmcli;
 
     // Used to switch backlight either
     // BLUE = all values of all universes = 0
