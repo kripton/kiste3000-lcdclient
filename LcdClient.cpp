@@ -233,8 +233,8 @@ void LcdClient::readServerResponse()
 
             // Add menu structure
             lcdSocket.write("menu_add_item \"\" system menu System\n");
-            lcdSocket.write("menu_add_item system shutdown action \"Nobb foahre ...\"\n");
-            lcdSocket.write("menu_add_item system startqlcplus action \"QLC+ stadde ...\"\n");
+            lcdSocket.write("menu_add_item system shutdown action \"Nobb foahre\" -menu_result close\n");
+            lcdSocket.write("menu_add_item system startqlcplus action \"QLC+ stadde\" -menu_result close\n");
             lcdSocket.write("menu_add_item \"\" display menu \"Anzeige\"\n");
             for (int i = 1; i <= 8; i++) {
                 lcdSocket.write(QString("menu_add_item display offset%1 numeric \"U%2 Start\" -value \"1\" -minvalue \"1\" -maxvalue \"505\"\n")
@@ -260,6 +260,13 @@ void LcdClient::readServerResponse()
                 .arg(universe)
                 .arg(universeOffset[universe - 1] + 1, 3, 10, QLatin1Char('0'))
                 .toLatin1());
+
+        } else if (line == "menuevent select shutdown") {
+            // TODO: Shut down. Honestly
+
+        } else if (line == "menuevent select startqlcplus") {
+            // Start X and QLC+. As user "kiste"
+
         }
     }
 }
