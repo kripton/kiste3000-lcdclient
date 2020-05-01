@@ -243,11 +243,26 @@ void LcdClient::readServerResponse()
                     .toLatin1());
             }
             lcdSocket.write("menu_add_item \"\" network menu \"Netzwerk\"\n");
+
             QStringList args = {"-g", "all", "dev"};
             nmcli.start("nmcli", args);
             nmcli.waitForFinished(2000);
             QStringList devs = QString::fromUtf8(nmcli.readAllStandardOutput()).split("\n");
             qDebug() << devs;
+            QString dev;
+            foreach (dev, devs) {
+                QStringList properties = dev.split(":");
+                if ((properties.count() != 9) ||
+                    ((properties[1] != "wifi") && (properties[1] != "ethernet")) ||
+                    (properties[2] == "unmanaged")
+                   ) {
+                    continue;
+                }
+                qDebug() << "PROPS:" << properties.count();
+                lcdSocket.write(QString("menu_add_item network \"%1\" menu \"?? %1\"\n")
+                    .arg(properties[0])
+                    .toLatin1());
+            }
 
             // Start the periodic updating of info screens and RPi status
             updateTimer.start(250);
