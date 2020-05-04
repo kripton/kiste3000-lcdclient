@@ -2,12 +2,13 @@
 
 LCDd client for Kiste3000.
 Replaces lcdproc in a sense that it displays system stats.
-Also provides menu items to configure the network, etc..
+Also provides menu items (shut down the system, ...).
 
 ## Getting Started
 
-Optionally, with qmake installed, run `qmake`. Nevertheless, I provided
-a minimal Makefile so qmake is not strictly needed.
+* Run `qmake .`
+* Run `make`
+* Run the resulting program ;)
 
 ## License
 
