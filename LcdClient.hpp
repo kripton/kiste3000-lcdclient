@@ -51,7 +51,7 @@ private:
     QFile fileTempThrottle;
     QNetworkAccessManager qnam;
     QNetworkRequest request;
-    QProcess nmcli;
+    QProcess proc;
 
     // Used to switch backlight either
     // BLUE = all values of all universes = 0

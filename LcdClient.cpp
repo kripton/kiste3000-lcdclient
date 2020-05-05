@@ -262,6 +262,7 @@ void LcdClient::readServerResponse()
 
         } else if (line == "menuevent select shutdown") {
             // TODO: Shut down. Honestly
+            proc.start("poweroff");
 
         } else if (line == "menuevent select startqlcplus") {
             // Start X and QLC+. As user "kiste"
